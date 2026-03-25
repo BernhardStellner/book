@@ -1,6 +1,3 @@
-// api/checkout.js
-// Creates a Stripe Checkout session and returns the URL
-
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 
 const CREDIT_MAP = {
@@ -19,7 +16,7 @@ module.exports = async (req, res) => {
 
   const { priceId, email } = req.body;
   if (!priceId || !CREDIT_MAP[priceId]) {
-    return res.status(400).json({ error: 'Ungültige Preis-ID' });
+    return res.status(400).json({ error: 'Ungueltige Preis-ID' });
   }
 
   try {
@@ -27,13 +24,9 @@ module.exports = async (req, res) => {
       mode: 'payment',
       line_items: [{ price: priceId, quantity: 1 }],
       customer_email: email || undefined,
-      success_url: `${process.env.NEXT_PUBLIC_URL}/app.html?session_id={CHECKOUT_SESSION_ID}&success=1`,
-      cancel_url:  `${process.env.NEXT_PUBLIC_URL}/index.html?cancelled=1`,
+      success_url: process.env.NEXT_PUBLIC_URL + '/app.html?success=1',
+      cancel_url: process.env.NEXT_PUBLIC_URL + '/index.html',
       metadata: { credits: String(CREDIT_MAP[priceId]) },
     });
     res.json({ url: session.url });
-  } catch (err) {
-    console.error('Stripe checkout error:', err);
-    res.status(500).json({ error: err.message });
-  }
-};
+  } ca
