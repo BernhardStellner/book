@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Buchgenerator — Dein Buch. Fertig. In einer Stunde.</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0e0c0a;
+    --surface: #161310;
+    --gold: #c9a84c;
+    --gold-dim: #8a6e2f;
+    --cream: #f0e8d8;
+    --muted: #6b6258;
+    --line: #2a2520;
+    --white: #faf6ef;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--cream);
+    font-family: 'Cormorant Garamond', serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── GRAIN OVERLAY ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    pointer-events: none;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    opacity: 0.35;
+  }
+
+  /* ── NAV ── */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    padding: 1.2rem 2rem;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid transparent;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  nav.scrolled { background: rgba(14,12,10,0.95); border-color: var(--line); backdrop-filter: blur(8px); }
+  .nav-logo {
+    font-family: 'DM Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.25em; text-transform: uppercase; color: var(--gold);
+  }
+  .nav-cta {
+    background: var(--gold); color: var(--bg);
+    padding: 0.5rem 1.2rem; border: none; border-radius: 1px;
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; text-decoration: none;
+    transition: background 0.2s;
+  }
+  .nav-cta:hover { background: var(--cream); }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative; z-index: 1;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 6rem 2rem 4rem;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.07) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 80% 100%, rgba(201,168,76,0.04) 0%, transparent 60%);
+  }
+
+  .hero-label {
+    font-family: 'DM Mono', monospace; font-size: 0.62rem;
+    letter-spacing: 0.35em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 1.5rem;
+    opacity: 0; animation: fadeUp 0.8s 0.2s ease forwards;
+  }
+
+  .hero h1 {
+    font-size: clamp(3rem, 8vw, 6.5rem);
+    font-weight: 300; line-height: 1.05;
+    letter-spacing: -0.02em; color: var(--white);
+    margin-bottom: 1.5rem;
+    opacity: 0; animation: fadeUp 0.8s 0.4s ease forwards;
+  }
+  .hero h1 em { font-style: italic; color: var(--gold); }
+
+  .hero-sub {
+    font-size: clamp(1.1rem, 2.5vw, 1.5rem);
+    font-weight: 300; color: var(--muted);
+    max-width: 560px; line-height: 1.6;
+    margin-bottom: 3rem;
+    opacity: 0; animation: fadeUp 0.8s 0.6s ease forwards;
+  }
+
+  .hero-btns {
+    display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;
+    opacity: 0; animation: fadeUp 0.8s 0.8s ease forwards;
+  }
+
+  .btn-primary {
+    background: var(--gold); color: var(--bg);
+    padding: 1rem 2.5rem; border: none; border-radius: 1px;
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; text-decoration: none;
+    transition: background 0.2s, transform 0.1s;
+    display: inline-block;
+  }
+  .btn-primary:hover { background: var(--cream); transform: translateY(-1px); }
+
+  .btn-secondary {
+    background: none; color: var(--cream);
+    padding: 1rem 2.5rem; border: 1px solid var(--line);
+    font-family: 'DM Mono', monospace; font-size: 0.72rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; text-decoration: none;
+    transition: border-color 0.2s, color 0.2s;
+    display: inline-block;
+  }
+  .btn-secondary:hover { border-color: var(--gold); color: var(--gold); }
+
+  .hero-scroll {
+    position: absolute; bottom: 2rem; left: 50%; transform: translateX(-50%);
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    color: var(--muted); letter-spacing: 0.2em;
+    animation: bounce 2s infinite;
+  }
+
+  /* ── SOCIAL PROOF ── */
+  .proof-bar {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 1.5rem 2rem;
+    display: flex; align-items: center; justify-content: center;
+    gap: 3rem; flex-wrap: wrap;
+    background: var(--surface);
+  }
+  .proof-item {
+    text-align: center;
+    font-family: 'DM Mono', monospace;
+  }
+  .proof-num { font-size: 1.4rem; color: var(--gold); display: block; }
+  .proof-label { font-size: 0.6rem; letter-spacing: 0.2em; color: var(--muted); text-transform: uppercase; }
+
+  /* ── SECTIONS ── */
+  section { position: relative; z-index: 1; padding: 6rem 2rem; }
+
+  .section-inner { max-width: 900px; margin: 0 auto; }
+
+  .section-label {
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.3em; text-transform: uppercase;
+    color: var(--gold); margin-bottom: 1rem;
+  }
+  .section-title {
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    font-weight: 300; line-height: 1.1;
+    color: var(--white); margin-bottom: 1.5rem;
+  }
+  .section-title em { font-style: italic; color: var(--gold); }
+  .section-body {
+    font-size: 1.2rem; font-weight: 300; color: var(--muted);
+    line-height: 1.7; max-width: 600px;
+  }
+
+  /* ── HOW IT WORKS ── */
+  .steps {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 2px; margin-top: 4rem;
+  }
+  .step {
+    background: var(--surface); padding: 2.5rem 2rem;
+    border: 1px solid var(--line);
+    transition: border-color 0.2s;
+  }
+  .step:hover { border-color: var(--gold-dim); }
+  .step-num {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    color: var(--gold); letter-spacing: 0.2em; margin-bottom: 1rem;
+  }
+  .step-title { font-size: 1.3rem; color: var(--white); margin-bottom: 0.6rem; }
+  .step-body { font-size: 1rem; color: var(--muted); line-height: 1.6; font-weight: 300; }
+
+  /* ── VS SECTION ── */
+  .vs-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 2px; margin-top: 3rem;
+  }
+  @media (max-width: 600px) { .vs-grid { grid-template-columns: 1fr; } }
+  .vs-col { background: var(--surface); padding: 2rem; border: 1px solid var(--line); }
+  .vs-col.highlight { border-color: var(--gold-dim); }
+  .vs-head {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    margin-bottom: 1.5rem; padding-bottom: 1rem;
+    border-bottom: 1px solid var(--line);
+  }
+  .vs-head.gold { color: var(--gold); }
+  .vs-head.dim { color: var(--muted); }
+  .vs-item {
+    display: flex; gap: 0.8rem; align-items: flex-start;
+    margin-bottom: 0.9rem; font-size: 1rem; color: var(--muted); font-weight: 300;
+  }
+  .vs-item .icon { flex-shrink: 0; margin-top: 2px; }
+  .vs-item.good { color: var(--cream); }
+
+  /* ── PRICING ── */
+  #pricing { background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .pricing-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 2px; margin-top: 3rem;
+  }
+  .pricing-card {
+    background: var(--bg); border: 1px solid var(--line);
+    padding: 2.5rem 2rem; position: relative;
+    transition: border-color 0.2s, transform 0.2s;
+    cursor: pointer;
+  }
+  .pricing-card:hover { border-color: var(--gold-dim); transform: translateY(-3px); }
+  .pricing-card.popular { border-color: var(--gold); }
+  .popular-badge {
+    position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    background: var(--gold); color: var(--bg);
+    font-family: 'DM Mono', monospace; font-size: 0.55rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    padding: 0.25rem 0.8rem;
+  }
+  .card-name {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 1rem;
+  }
+  .card-price {
+    font-size: 3rem; font-weight: 300; color: var(--white);
+    line-height: 1; margin-bottom: 0.3rem;
+  }
+  .card-price span { font-size: 1.2rem; vertical-align: super; color: var(--gold); }
+  .card-books {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    color: var(--gold); letter-spacing: 0.1em; margin-bottom: 1.5rem;
+  }
+  .card-perbook {
+    font-size: 0.9rem; color: var(--muted); margin-bottom: 2rem; font-weight: 300;
+  }
+  .card-btn {
+    width: 100%; padding: 0.8rem; background: none;
+    border: 1px solid var(--line); color: var(--cream);
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    cursor: pointer; transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+  .card-btn:hover, .pricing-card.popular .card-btn {
+    background: var(--gold); border-color: var(--gold); color: var(--bg);
+  }
+
+  /* ── LOGIN MODAL ── */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 200;
+    background: rgba(10,8,6,0.92); backdrop-filter: blur(6px);
+    align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--line);
+    padding: 3rem; max-width: 400px; width: 90%; position: relative;
+    animation: fadeUp 0.3s ease;
+  }
+  .modal-close {
+    position: absolute; top: 1rem; right: 1.2rem;
+    background: none; border: none; color: var(--muted);
+    font-size: 1.2rem; cursor: pointer;
+  }
+  .modal h2 { font-size: 1.8rem; font-weight: 300; color: var(--white); margin-bottom: 0.5rem; }
+  .modal p { font-size: 1rem; color: var(--muted); margin-bottom: 2rem; font-weight: 300; }
+  .modal input {
+    width: 100%; background: var(--bg); border: 1px solid var(--line);
+    padding: 0.8rem 1rem; color: var(--cream);
+    font-family: 'Cormorant Garamond', serif; font-size: 1rem;
+    outline: none; margin-bottom: 1rem;
+    transition: border-color 0.2s;
+  }
+  .modal input:focus { border-color: var(--gold); }
+  .modal-btn {
+    width: 100%; padding: 0.9rem; background: var(--gold); color: var(--bg);
+    border: none; font-family: 'DM Mono', monospace; font-size: 0.7rem;
+    letter-spacing: 0.15em; text-transform: uppercase; cursor: pointer;
+    transition: background 0.2s;
+  }
+  .modal-btn:hover { background: var(--cream); }
+  .modal-msg { font-size: 0.9rem; color: var(--gold); margin-top: 1rem; text-align: center; min-height: 1.2rem; }
+
+  /* ── FOOTER ── */
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--line);
+    padding: 2rem; text-align: center;
+    font-family: 'DM Mono', monospace; font-size: 0.6rem;
+    letter-spacing: 0.15em; color: var(--muted);
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes bounce {
+    0%, 100% { transform: translateX(-50%) translateY(0); }
+    50%       { transform: translateX(-50%) translateY(6px); }
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .proof-bar { gap: 1.5rem; }
+    section { padding: 4rem 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav id="nav">
+  <div class="nav-logo">AI Buchgenerator</div>
+  <a href="#pricing" class="nav-cta">Jetzt starten</a>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-label">Powered by GPT-4 · KDP-ready · Sofort-Download</div>
+  <h1>Dein Buch.<br><em>Fertig.</em><br>In einer Stunde.</h1>
+  <p class="hero-sub">Beschreib dein Buch — wir schreiben es. Kapitel für Kapitel, in deinem Stil, druckfertig für Amazon KDP.</p>
+  <div class="hero-btns">
+    <a href="#pricing" class="btn-primary">Paket wählen</a>
+    <a href="#how" class="btn-secondary">Wie funktioniert's?</a>
+  </div>
+  <div class="hero-scroll">↓ scroll</div>
+</section>
+
+<!-- SOCIAL PROOF BAR -->
+<div class="proof-bar">
+  <div class="proof-item">
+    <span class="proof-num">~60 min</span>
+    <span class="proof-label">bis zum fertigen Buch</span>
+  </div>
+  <div class="proof-item">
+    <span class="proof-num">150+</span>
+    <span class="proof-label">Seiten pro Buch</span>
+  </div>
+  <div class="proof-item">
+    <span class="proof-num">KDP</span>
+    <span class="proof-label">direkt hochladbar</span>
+  </div>
+  <div class="proof-item">
+    <span class="proof-num">DOCX</span>
+    <span class="proof-label">formatiert & druckfertig</span>
+  </div>
+</div>
+
+<!-- HOW IT WORKS -->
+<section id="how">
+  <div class="section-inner">
+    <div class="section-label">So funktioniert's</div>
+    <h2 class="section-title">Vier Schritte.<br><em>Ein fertiges Buch.</em></h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01 —</div>
+        <div class="step-title">Paket wählen</div>
+        <div class="step-body">Einmalig bezahlen, Credits landen sofort auf deinem Konto. Kein Abo, kein Kleingedrucktes.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">02 —</div>
+        <div class="step-title">Buch beschreiben</div>
+        <div class="step-body">Titel, Stil, Thema, Kapitel — oder KI-Vorschläge nutzen. Du entscheidest wie viel du vorgibst.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">03 —</div>
+        <div class="step-title">Generieren</div>
+        <div class="step-body">KI schreibt Kapitel für Kapitel in deinem Stil. Konsistent, stringent, kein Copy-Paste aus ChatGPT.</div>
+      </div>
+      <div class="step">
+        <div class="step-num">04 —</div>
+        <div class="step-title">Download & Publish</div>
+        <div class="step-body">DOCX-Download, KDP-formatiert (6×9", Times New Roman, 1,5-facher Zeilenabstand). Direkt bei Amazon hochladen.</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VS CHATGPT -->
+<section style="background: var(--surface); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);">
+  <div class="section-inner">
+    <div class="section-label">Der Unterschied</div>
+    <h2 class="section-title">Was ChatGPT<br><em>nicht kann.</em></h2>
+
+    <div class="vs-grid">
+      <div class="vs-col highlight">
+        <div class="vs-head gold">AI Buchgenerator</div>
+        <div class="vs-item good"><span class="icon">✦</span> Komplettes Buch in einem Klick</div>
+        <div class="vs-item good"><span class="icon">✦</span> Konsistenter Stil über alle Kapitel</div>
+        <div class="vs-item good"><span class="icon">✦</span> KDP-formatiertes DOCX, sofort druckfertig</div>
+        <div class="vs-item good"><span class="icon">✦</span> Kapitelstruktur automatisch oder manuell</div>
+        <div class="vs-item good"><span class="icon">✦</span> Vorwort, Nachwort, Titelseite inklusive</div>
+        <div class="vs-item good"><span class="icon">✦</span> Kein technisches Wissen nötig</div>
+      </div>
+      <div class="vs-col">
+        <div class="vs-head dim">ChatGPT / andere KI</div>
+        <div class="vs-item"><span class="icon">–</span> Kein DOCX-Export</div>
+        <div class="vs-item"><span class="icon">–</span> Stil bricht nach jedem Kapitel</div>
+        <div class="vs-item"><span class="icon">–</span> Keine KDP-Formatierung</div>
+        <div class="vs-item"><span class="icon">–</span> 20× copy-pasten, händisch formatieren</div>
+        <div class="vs-item"><span class="icon">–</span> Kein durchgehender roter Faden</div>
+        <div class="vs-item"><span class="icon">–</span> Braucht Prompting-Kenntnisse</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- PRICING -->
+<section id="pricing">
+  <div class="section-inner">
+    <div class="section-label">Preise</div>
+    <h2 class="section-title">Einmal zahlen.<br><em>Sofort loslegen.</em></h2>
+    <p class="section-body">Kein Abo. Credits verfallen nicht. Preise inkl. aller Gebühren — als Kleinunternehmer ohne USt.</p>
+
+    <div class="pricing-grid">
+      <div class="pricing-card" onclick="startCheckout('price_1TEyh4QyGxc2syscjWCIwLQ8')">
+        <div class="card-name">Probier's aus</div>
+        <div class="card-price"><span>€</span>5</div>
+        <div class="card-books">1 Buch</div>
+        <div class="card-perbook">5,00 € pro Buch</div>
+        <button class="card-btn">Jetzt kaufen</button>
+      </div>
+
+      <div class="pricing-card popular" onclick="startCheckout('price_1TEyhWQyGxc2syscPoq2IKq6')">
+        <div class="popular-badge">Beliebt</div>
+        <div class="card-name">Starter</div>
+        <div class="card-price"><span>€</span>12</div>
+        <div class="card-books">3 Bücher</div>
+        <div class="card-perbook">4,00 € pro Buch</div>
+        <button class="card-btn">Jetzt kaufen</button>
+      </div>
+
+      <div class="pricing-card" onclick="startCheckout('price_1TEyi6QyGxc2sysc71zOz3k9')">
+        <div class="card-name">Creator</div>
+        <div class="card-price"><span>€</span>25</div>
+        <div class="card-books">8 Bücher</div>
+        <div class="card-perbook">3,13 € pro Buch</div>
+        <button class="card-btn">Jetzt kaufen</button>
+      </div>
+
+      <div class="pricing-card" onclick="startCheckout('price_1TEykXQyGxc2syscycQmGrXk')">
+        <div class="card-name">Pro</div>
+        <div class="card-price"><span>€</span>49</div>
+        <div class="card-books">20 Bücher</div>
+        <div class="card-perbook">2,45 € pro Buch</div>
+        <button class="card-btn">Jetzt kaufen</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <p>© 2025 AI Buchgenerator · Kleinunternehmer gem. § 6 Abs. 1 Z 27 UStG · Keine USt ausgewiesen</p>
+</footer>
+
+<!-- LOGIN MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <h2>Fast geschafft</h2>
+    <p>Gib deine E-Mail ein — wir schicken dir einen Magic Link. Kein Passwort nötig.</p>
+    <input type="email" id="modal-email" placeholder="deine@email.com" autocomplete="email">
+    <button class="modal-btn" onclick="submitEmail()">Weiter zum Checkout</button>
+    <div class="modal-msg" id="modal-msg"></div>
+  </div>
+</div>
+
+<script>
+  // Nav scroll effect
+  window.addEventListener('scroll', () => {
+    document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 40);
+  });
+
+  // Checkout flow
+  let pendingPriceId = null;
+
+  function startCheckout(priceId) {
+    pendingPriceId = priceId;
+    document.getElementById('modal').classList.add('open');
+    document.getElementById('modal-email').focus();
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('open');
+    document.getElementById('modal-msg').textContent = '';
+    pendingPriceId = null;
+  }
+
+  async function submitEmail() {
+    const email = document.getElementById('modal-email').value.trim();
+    const msg   = document.getElementById('modal-msg');
+    if (!email || !email.includes('@')) { msg.textContent = 'Bitte gültige E-Mail eingeben.'; return; }
+
+    msg.textContent = 'Weiterleitung zu Stripe …';
+
+    try {
+      const res  = await fetch('/api/checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ priceId: pendingPriceId, email })
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        msg.textContent = 'Fehler: ' + (data.error || 'Unbekannt');
+      }
+    } catch(e) {
+      msg.textContent = 'Verbindungsfehler. Bitte nochmal versuchen.';
+    }
+  }
+
+  // Enter key in email field
+  document.getElementById('modal-email').addEventListener('keydown', e => {
+    if (e.key === 'Enter') submitEmail();
+  });
+
+  // Close modal on overlay click
+  document.getElementById('modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('modal')) closeModal();
+  });
+
+  // Show cancelled message
+  if (new URLSearchParams(location.search).get('cancelled')) {
+    // subtle notification
+    setTimeout(() => {
+      const bar = document.createElement('div');
+      bar.style.cssText = 'position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);background:#2a2520;color:#c9a84c;padding:.8rem 1.5rem;font-family:"DM Mono",monospace;font-size:.65rem;letter-spacing:.1em;z-index:999;border:1px solid #c9a84c;';
+      bar.textContent = 'Zahlung abgebrochen — kein Problem, jederzeit neu starten.';
+      document.body.appendChild(bar);
+      setTimeout(() => bar.remove(), 5000);
+    }, 500);
+  }
+</script>
+</body>
+</html>

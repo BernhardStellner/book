@@ -1,0 +1,9 @@
+{
+  "name": "aibuchgenerator",
+  "version": "1.0.0",
+  "description": "AI Buchgenerator - KDP ready",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0",
+    "stripe": "^14.0.0"
+  }
+}
